@@ -4,6 +4,8 @@ An n8n workflow that updates WordPress plugins and themes **one at a time**, che
 
 Built for people who manage WordPress sites and are tired of "update all, hope for the best".
 
+![Workflow overview in n8n](docs/workflow.png)
+
 ## What it does
 
 For every plugin and theme with an available update:
