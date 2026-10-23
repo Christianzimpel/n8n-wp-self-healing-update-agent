@@ -363,7 +363,7 @@
         "model": "openai/gpt-oss-120b",
         "options": {
           "temperature": 0.2,
-          "maxTokensToSample": 4096
+          "maxTokensToSample": 1000
         }
       },
       "id": "a8f9012d-8b54-4167-9b23-ff6478ea8ec9",
