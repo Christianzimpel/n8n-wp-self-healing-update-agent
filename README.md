@@ -20,7 +20,7 @@ For every plugin and theme with an available update:
 4. **Roll back** from the backup if any check fails
 5. **Retry** rolled-back items once more after all other updates, since a conflict may have been resolved by another update
 
-At the end you get one email report: what was updated, what was rolled back, warnings, and an AI explanation (Google Gemini) of each failure with a concrete next step.
+At the end you get one email report: what was updated, what was rolled back, warnings, and an AI explanation (via Groq, swappable for any n8n chat model) of each failure with a concrete next step.
 
 If a rollback itself fails, the workflow stops all further updates and sends an **emergency email** with recovery instructions.
 
@@ -31,6 +31,13 @@ If a rollback itself fails, the workflow stops all further updates and sends an 
 - Debug logging is switched on only for the run and restored afterwards, even if a previous run crashed
 - Rollback only deletes paths inside `/plugins/` or `/themes/`
 - Backups are kept for a configurable number of days (default 14)
+
+## Tested on a live site
+
+Both paths were tested on a production WordPress site (WP 6.9, PHP 7.4, shared hosting):
+
+- **Normal run:** 10 plugins and themes updated one by one (including Elementor 4.1 → 4.3), every page check green, report sent. Total runtime about 2 minutes.
+- **Rollback run:** an update was deliberately made to crash the site (HTTP 500, PHP fatal error). The agent detected it via the log, WP-CLI boot check and HTTP check, restored the previous version and verified the site was back online. **Downtime: about 4 seconds.** The second attempt failed the same way and was rolled back again.
 
 ## Requirements
 
@@ -43,7 +50,7 @@ If a rollback itself fails, the workflow stops all further updates and sends an 
 **Credentials in n8n:**
 - SSH (private key)
 - SMTP
-- Google Gemini API key (only used when something fails)
+- Groq API key (free tier is enough; only used when something fails). You can swap the Groq node for OpenAI, Gemini, Anthropic or a local model.
 
 ## Setup
 
@@ -61,7 +68,7 @@ If a rollback itself fails, the workflow stops all further updates and sends an 
    | `keepDays` | How long backups are kept on the server |
    | `maxAttempts` | Attempts per plugin/theme (default 2) |
 
-3. Select your SSH credential in all 6 SSH nodes, plus SMTP and Gemini credentials
+3. Select your SSH credential in all 6 SSH nodes, plus SMTP and Groq credentials
 4. **Run it manually against a staging site first**
 5. Publish the workflow. It runs every Monday at 4 AM by default.
 
