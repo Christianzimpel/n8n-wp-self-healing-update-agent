@@ -1,5 +1,5 @@
 {
-  "name": "WP Self-Healing Update Agent",
+  "name": "Update WordPress plugins and themes via SSH with automatic rollback",
   "nodes": [
     {
       "parameters": {},
@@ -731,31 +731,115 @@
     },
     {
       "parameters": {
-        "content": "## WP Self-Healing Update Agent\n\n**One-time setup:**\n1. Open **Configuration**: set `siteUrl` and `wpPath` (WordPress root directory on the server), check the mail addresses. Optional: `phpErrorLog` with the path to the server error log.\n2. Create an SSH credential (private key) and select it in all 6 SSH nodes. Add SMTP and Groq credentials (any LangChain chat model works).\n3. Run it manually against a **staging site** first.\n4. Once everything works: publish it, and it runs every Monday at 4 AM.\n\n**Server needs:** WP-CLI, PHP-CLI, curl, tar.\nBackups, DB dump and debug log are stored in `~/wp-selfheal/runs/<run-id>`.",
-        "color": 4
+        "content": "## Update WordPress plugins and themes via SSH with automatic rollback\n\nPlugin updates break WordPress sites. This workflow updates every plugin and theme **one at a time**, checks the site after each update and **rolls back automatically** if something breaks.\n\n### Who's it for\nFreelancers, agencies and site owners who manage WordPress sites with SSH access and want safe, unattended updates.\n\n### How it works\n1. Every Monday at 4 AM (or manually), the workflow connects via SSH, backs up the database and lists all available updates. If the site is already broken, it stops without changing anything.\n2. For each plugin and theme: back up the folder, update it with WP-CLI, then check HTTP status, the WordPress error page, WordPress boot and new PHP fatal errors in the debug log.\n3. If a check fails, the backup is restored and the site is verified again. Rolled-back items get one more attempt at the end.\n4. Groq analyzes every failure and suggests a next step.\n5. You receive an HTML email report. If a rollback fails, an emergency email goes out instead.\n\n### How to set up\n1. Open **Configuration** and set `siteUrl`, `wpPath` and the mail addresses.\n2. Add your SSH (private key) credential to all 6 SSH nodes, plus SMTP and Groq.\n3. Run it manually against a staging site first, then activate it.\n\n### Requirements\n- SSH access with WP-CLI, PHP-CLI, curl and tar on the server\n- SMTP account\n- Groq API key (free tier works)\n\n### How to customize the workflow\n- Change `checkPaths` to test more pages after each update.\n- Adjust `keepDays` and `maxAttempts`, or the schedule in **Every Monday 4 AM**.\n- Swap the Groq node for any other chat model.\n\nFull documentation: https://github.com/Christianzimpel/n8n-wp-self-healing-update-agent",
+        "color": 1,
+        "width": 620,
+        "height": 1180
       },
       "id": "01b2b4f1-0e60-43dc-be03-2042f7003869",
-      "name": "Sticky Note 30090b23",
+      "name": "About this template",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        2128,
-        1008
+        -760,
+        240
       ]
     },
     {
       "parameters": {
-        "content": "### Flow per plugin/theme\nBackup → update → check site + logs → roll back on failure.\n\nRolled-back plugins get a **second attempt** after all others, since the other updates may have resolved the conflict.\n\nOnly **new** fatal errors, 5xx responses or the WordPress error page trigger a rollback. Warnings only go into the report.",
-        "color": 5
+        "content": "### 3. Update and check\nBackup → WP-CLI update → check pages (HTTP status, WordPress error page) → check WordPress boot and new PHP fatal errors.\n\nOnly **new** fatal errors, 5xx responses or the error page trigger a rollback. Warnings only go into the report.",
+        "color": 7,
+        "width": 760,
+        "height": 200
       },
       "id": "bf56ae70-46bc-4e81-ae34-1c7510f6da41",
-      "name": "Sticky Note b4d8a43b",
+      "name": "Note: Update and check",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        2128,
-        1264
+        2016,
+        760
       ]
+    },
+    {
+      "name": "Note: Preparation",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        200,
+        1040
+      ],
+      "parameters": {
+        "content": "### 1. Preparation\nLoads your settings, writes a small helper script to the server, backs up the database, turns on a temporary debug log and lists available updates.\n\nIf the site is already broken, the run stops here and nothing is changed.",
+        "color": 7,
+        "width": 680,
+        "height": 220
+      },
+      "id": "24bda0c2-ed4f-46d3-ac33-e882ad618652"
+    },
+    {
+      "name": "Note: Loop",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1160,
+        260
+      ],
+      "parameters": {
+        "content": "### 2. One update at a time\nEach plugin and theme runs through the loop on its own, so one bad update never affects the others.\n\nRolled-back items get a second attempt after all others.",
+        "color": 7,
+        "width": 340,
+        "height": 260
+      },
+      "id": "619d3195-0c0a-4a31-985c-4d2ddc7147e1"
+    },
+    {
+      "name": "Note: Rollback",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        3460,
+        720
+      ],
+      "parameters": {
+        "content": "### 4. Rollback\nRestores the plugin or theme folder from the backup and checks the site again.",
+        "color": 7,
+        "width": 440,
+        "height": 160
+      },
+      "id": "683bd2a8-de20-43f8-bedc-2fa3f54d5cc3"
+    },
+    {
+      "name": "Note: Emergency",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        4140,
+        760
+      ],
+      "parameters": {
+        "content": "### 5. Emergency\nIf the site is still broken after a rollback, all further updates stop and you get an emergency email with recovery steps.",
+        "color": 7,
+        "width": 440,
+        "height": 200
+      },
+      "id": "07e4d4e4-8356-48fb-8192-9bf9e1ac1a6e"
+    },
+    {
+      "name": "Note: Report",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        2240,
+        -140
+      ],
+      "parameters": {
+        "content": "### 6. Report\nRestores the debug settings, lets Groq explain each failure and sends one HTML email report.",
+        "color": 7,
+        "width": 700,
+        "height": 160
+      },
+      "id": "898c5a85-8aac-4f1f-8c39-ca930791929a"
     }
   ],
   "connections": {
