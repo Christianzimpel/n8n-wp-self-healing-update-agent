@@ -1,1 +1,85 @@
-# n8n-wp-self-healing-update-agent
+# WP Self-Healing Update Agent for n8n
+
+An n8n workflow that updates WordPress plugins and themes **one at a time**, checks the site after every single update, and **rolls back automatically** if something breaks. You get an HTML report by email, including an AI analysis of what went wrong.
+
+Built for people who manage WordPress sites and are tired of "update all, hope for the best".
+
+## What it does
+
+For every plugin and theme with an available update:
+
+1. **Backup** the plugin/theme folder (plus one database dump before the run starts)
+2. **Update** it via WP-CLI
+3. **Check** the site:
+   - HTTP status of configurable pages (default `/` and `/wp-login.php`)
+   - WordPress error page detection (English and German)
+   - Does WordPress still boot? (`wp eval` via WP-CLI)
+   - **New** fatal errors in the debug log (errors that existed before the run are ignored)
+4. **Roll back** from the backup if any check fails
+5. **Retry** rolled-back items once more after all other updates, since a conflict may have been resolved by another update
+
+At the end you get one email report: what was updated, what was rolled back, warnings, and an AI explanation (Google Gemini) of each failure with a concrete next step.
+
+If a rollback itself fails, the workflow stops all further updates and sends an **emergency email** with recovery instructions.
+
+## Safety features
+
+- Runs a **baseline check before touching anything**. If the site is already broken, nothing is updated.
+- **Lock file** prevents two runs at the same time
+- Debug logging is switched on only for the run and restored afterwards, even if a previous run crashed
+- Rollback only deletes paths inside `/plugins/` or `/themes/`
+- Backups are kept for a configurable number of days (default 14)
+
+## Requirements
+
+**n8n:** any recent version with the SSH, Email (SMTP) and LangChain nodes
+
+**Server (where WordPress runs):**
+- SSH access with a private key
+- WP-CLI, PHP-CLI, `curl`, `tar`
+
+**Credentials in n8n:**
+- SSH (private key)
+- SMTP
+- Google Gemini API key (only used when something fails)
+
+## Setup
+
+1. Import `wp-self-healing-update-agent.json` into n8n
+2. Open the **Configuration** node and set:
+
+   | Field | Meaning |
+   |---|---|
+   | `siteUrl` | Public URL of the site, e.g. `https://www.example.com` |
+   | `wpPath` | WordPress root directory on the server |
+   | `wpCli` | WP-CLI command, usually `wp` |
+   | `checkPaths` | Comma-separated paths to check after each update |
+   | `phpErrorLog` | Optional: path to the server's PHP error log |
+   | `mailTo` / `mailFrom` | Report recipient and sender |
+   | `keepDays` | How long backups are kept on the server |
+   | `maxAttempts` | Attempts per plugin/theme (default 2) |
+
+3. Select your SSH credential in all 6 SSH nodes, plus SMTP and Gemini credentials
+4. **Run it manually against a staging site first**
+5. Publish the workflow. It runs every Monday at 4 AM by default.
+
+Backups, the database dump and the debug log of each run are stored on the server in `~/wp-selfheal/runs/<run-id>`.
+
+## How it works
+
+The workflow writes a small bash helper script (`selfheal.sh`) to the server on every run and calls it over SSH with one command per step (`prepare`, `update`, `check`, `rollback`, `finish`). The script returns JSON, which n8n evaluates. This keeps the server side stateless and the logic visible in n8n.
+
+```
+Prepare → for each update: Backup & update → Check pages + logs → Rollback if broken
+        → Retry rolled-back items once → Clean up → AI analysis → Email report
+```
+
+## Limitations
+
+- A rollback restores **files only**. If a plugin already migrated the database during its update, use the `db-before.sql.gz` dump from the run folder.
+- Checks run from the server (WP-CLI) and from n8n (HTTP). Pages behind a login are not checked.
+- Built for single-site installations. Multisite is untested.
+
+## License
+
+MIT
