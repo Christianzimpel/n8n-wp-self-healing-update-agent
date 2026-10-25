@@ -28,6 +28,7 @@ If a rollback itself fails, the workflow stops all further updates and sends an 
 
 - Runs a **baseline check before touching anything**. If the site is already broken, nothing is updated.
 - **Lock file** prevents two runs at the same time
+- If `selfheal.sh` is missing on the server, the run stops before changing anything and you get an "aborted" email
 - Debug logging is switched on only for the run and restored afterwards, even if a previous run crashed
 - Rollback only deletes paths inside `/plugins/` or `/themes/`
 - Backups are kept for a configurable number of days (default 14)
@@ -45,6 +46,7 @@ Both paths were tested on a production WordPress site (WP 6.9, PHP 7.4, shared h
 
 **Server (where WordPress runs):**
 - SSH access with a private key
+- `selfheal.sh` from this repository in `~/wp-selfheal/`
 - WP-CLI, PHP-CLI, `curl`, `tar`
 
 **Credentials in n8n:**
@@ -54,8 +56,17 @@ Both paths were tested on a production WordPress site (WP 6.9, PHP 7.4, shared h
 
 ## Setup
 
-1. Import `wp-self-healing-update-agent.json` into n8n
-2. Open the **Configuration** node and set:
+1. Copy the helper script to your server (once, and again whenever you update it):
+
+   ```bash
+   mkdir -p ~/wp-selfheal
+   curl -fsSL https://raw.githubusercontent.com/Christianzimpel/n8n-wp-self-healing-update-agent/main/selfheal.sh -o ~/wp-selfheal/selfheal.sh
+   chmod 700 ~/wp-selfheal/selfheal.sh
+   ```
+
+   Or upload `selfheal.sh` by SFTP to `~/wp-selfheal/selfheal.sh`. Please read the script before running it on your server.
+2. Import `wp-self-healing-update-agent.json` into n8n
+3. Open the **Configuration** node and set:
 
    | Field | Meaning |
    |---|---|
@@ -68,15 +79,15 @@ Both paths were tested on a production WordPress site (WP 6.9, PHP 7.4, shared h
    | `keepDays` | How long backups are kept on the server |
    | `maxAttempts` | Attempts per plugin/theme (default 2) |
 
-3. Select your SSH credential in all 6 SSH nodes, plus SMTP and Groq credentials
-4. **Run it manually against a staging site first**
-5. Publish the workflow. It runs every Monday at 4 AM by default.
+4. Select your SSH credential in all 6 SSH nodes, plus SMTP and Groq credentials
+5. **Run it manually against a staging site first**
+6. Publish the workflow. It runs every Monday at 4 AM by default.
 
 Backups, the database dump and the debug log of each run are stored on the server in `~/wp-selfheal/runs/<run-id>`.
 
 ## How it works
 
-The workflow writes a small bash helper script (`selfheal.sh`) to the server on every run and calls it over SSH with one command per step (`prepare`, `update`, `check`, `rollback`, `finish`). The script returns JSON, which n8n evaluates. This keeps the server side stateless and the logic visible in n8n.
+A small bash helper script (`selfheal.sh`, in this repository) lives on the server. The workflow checks that it exists and calls it over SSH with one command per step (`prepare`, `update`, `check`, `rollback`, `finish`). The script returns JSON, which n8n evaluates. This keeps the decision logic visible in n8n.
 
 ```
 Prepare → for each update: Backup & update → Check pages + logs → Rollback if broken
