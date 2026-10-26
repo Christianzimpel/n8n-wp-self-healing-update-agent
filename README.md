@@ -4,6 +4,8 @@ An n8n workflow that updates WordPress plugins and themes **one at a time**, che
 
 Built for people who manage WordPress sites and are tired of "update all, hope for the best".
 
+**Official n8n template:** [Update and roll back WordPress plugins and themes via SSH with Groq reports](https://n8n.io/workflows/21702) – import it in one click from the n8n template library.
+
 ![Workflow overview in n8n](docs/workflow.png)
 
 ## What it does
